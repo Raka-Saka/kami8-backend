@@ -1,0 +1,5 @@
+node_modules
+# Keep environment variables out of version control
+.env
+kami-435801-a0f72ba9ae9f.json
+
