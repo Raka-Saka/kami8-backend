@@ -1,16 +1,23 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcryptjs from 'bcryptjs';
-
-// This is a mock user database. In a real application, you'd use a proper database.
-let users: { id: number; username: string; email: string; password: string }[] = [];
+import prisma from '../lib/prisma';
 
 export const signup = async (req: Request, res: Response) => {
   try {
     const { username, email, password } = req.body;
     
     // Check if user already exists
-    if (users.find(user => user.email === email)) {
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email },
+          { username }
+        ]
+      }
+    });
+
+    if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
@@ -19,14 +26,13 @@ export const signup = async (req: Request, res: Response) => {
     const hashedPassword = await bcryptjs.hash(password, salt);
 
     // Create new user
-    const newUser = {
-      id: users.length + 1,
-      username,
-      email,
-      password: hashedPassword
-    };
-
-    users.push(newUser);
+    const newUser = await prisma.user.create({
+      data: {
+        username,
+        email,
+        password: hashedPassword
+      }
+    });
 
     // Create token
     const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET as string, {
@@ -44,7 +50,7 @@ export const login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     // Find user
-    const user = users.find(user => user.email === email);
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       return res.status(400).json({ message: 'User not found' });
     }
